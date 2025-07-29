@@ -3,10 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { connectDatabase } from './config/database';
 
 const app = express();
 const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3001;
 const HOST = process.env['HOST'] ?? 'localhost';
+const JWT_SECRET = process.env['JWT_SECRET'] || 'your-secret-key';
 
 // Security middleware
 app.use(helmet());
@@ -43,20 +47,119 @@ app.get('/health', (req, res) => {
 });
 
 // Auth routes
-app.post('/api/v1/auth/login', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Login endpoint ready',
-    data: { token: 'sample-token' }
-  });
+app.post('/api/v1/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
+    // TODO: Check user in database
+    // For now, using mock authentication
+    if (email === 'admin@ultramarket.uz' && password === 'admin123') {
+      const token = jwt.sign(
+        { userId: '1', email: email },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        data: { 
+          token,
+          user: {
+            id: '1',
+            email: email,
+            name: 'Admin User'
+          }
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
 });
 
-app.post('/api/v1/auth/register', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Register endpoint ready',
-    data: { userId: 'sample-user-id' }
-  });
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    
+    if (!email || !password || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, password, and name are required'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // TODO: Save user to database
+    // For now, return mock response
+    const token = jwt.sign(
+      { userId: '2', email: email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      data: { 
+        token,
+        user: {
+          id: '2',
+          email: email,
+          name: name
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+app.post('/api/v1/auth/verify', async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token is required'
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({
+      success: true,
+      message: 'Token is valid',
+      data: { user: decoded }
+    });
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token'
+    });
+  }
 });
 
 // 404 handler
@@ -68,9 +171,35 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, HOST, () => {
-  console.log(`Auth service started successfully on ${HOST}:${PORT}`);
+// Initialize database connection and start server
+async function startServer() {
+  try {
+    await connectDatabase();
+
+    // Start server
+    app.listen(PORT, HOST, () => {
+      console.log(`Auth service started successfully on ${HOST}:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start auth service', error);
+    // Start server even if database fails
+    app.listen(PORT, HOST, () => {
+      console.log(`Auth service started successfully on ${HOST}:${PORT} (mock mode)`);
+    });
+  }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
 });
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
+
+startServer();
 
 export default app;
