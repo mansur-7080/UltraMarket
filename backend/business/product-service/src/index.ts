@@ -8,19 +8,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/environment';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
-import { securityMiddleware } from '@ultramarket/shared/middleware/security';
 import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
 import { connectDatabase } from './config/database';
 
-// Validate environment on startup
-validateEnvironmentOnStartup('product-service');
-
 const app = express();
-const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3003;
+const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3002;
 const HOST = process.env['HOST'] ?? 'localhost';
 
 // Security middleware
@@ -47,9 +40,6 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Security middleware
-app.use(securityMiddleware());
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -63,9 +53,6 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/categories', categoryRoutes);
-
-// Error handling middleware
-app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -83,29 +70,23 @@ async function startServer() {
 
     // Start server
     app.listen(PORT, HOST, () => {
-      logger.info('Product service started successfully', {
-        port: PORT,
-        host: HOST,
-        environment: process.env['NODE_ENV'] ?? 'development',
-      });
+      console.log(`Product service started successfully on ${HOST}:${PORT}`);
     });
   } catch (error) {
-    logger.error('Failed to start product service', { error });
+    console.error('Failed to start product service', error);
     process.exit(1);
   }
 }
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+  console.log('SIGTERM received, shutting down gracefully');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
+  console.log('SIGINT received, shutting down gracefully');
   process.exit(0);
 });
 
 startServer();
-
-export default app;

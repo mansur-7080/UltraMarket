@@ -1,6 +1,0 @@
-{
-  "name": "pc-builder-service",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/business/pc-builder-service/src",
-  "projectType": "application"
-}

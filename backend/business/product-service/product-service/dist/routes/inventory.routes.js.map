@@ -1,1 +1,0 @@
-{"version":3,"file":"inventory.routes.js","sourceRoot":"","sources":["../../src/routes/inventory.routes.ts"],"names":[],"mappings":";;AAAA,qCAAiC;AAEjC,MAAM,MAAM,GAAG,IAAA,gBAAM,GAAE,CAAC;AAExB,iDAAiD;AACjD,MAAM,CAAC,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,EAAE,GAAG,EAAE,EAAE;IAC3B,GAAG,CAAC,IAAI,CAAC,EAAE,OAAO,EAAE,gCAAgC,EAAE,CAAC,CAAC;AAC1D,CAAC,CAAC,CAAC;AAEH,kBAAe,MAAM,CAAC"}

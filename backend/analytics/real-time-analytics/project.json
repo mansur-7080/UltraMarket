@@ -1,6 +1,0 @@
-{
-  "name": "real-time-analytics",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/analytics/real-time-analytics/src",
-  "projectType": "application"
-}

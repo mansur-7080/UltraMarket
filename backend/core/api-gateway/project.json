@@ -1,6 +1,0 @@
-{
-  "name": "api-gateway",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/core/api-gateway/src",
-  "projectType": "application"
-}

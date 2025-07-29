@@ -1,6 +1,0 @@
-{
-  "name": "navigation-service",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/platform/navigation-service/src",
-  "projectType": "application"
-}

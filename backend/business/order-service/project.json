@@ -1,6 +1,0 @@
-{
-  "name": "order-service",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/business/order-service/src",
-  "projectType": "application"
-}
