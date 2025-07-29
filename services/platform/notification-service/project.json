@@ -1,6 +1,0 @@
-{
-  "name": "notification-service",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/platform/notification-service/src",
-  "projectType": "application"
-}

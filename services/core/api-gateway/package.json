@@ -1,12 +1,12 @@
 {
-  "name": "@ultramarket/auth-service",
+  "name": "@ultramarket/api-gateway",
   "version": "1.0.0",
-  "description": "Authentication and authorization microservice for UltraMarket",
-  "main": "dist/index.js",
+  "description": "API Gateway for UltraMarket microservices",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "start": "node dist/main.js",
+    "dev": "ts-node src/main.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts"
   },
@@ -16,18 +16,14 @@
     "helmet": "^7.2.0",
     "compression": "^1.7.4",
     "express-rate-limit": "^8.0.1",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.3.1",
-    "joi": "^17.12.0",
+    "axios": "^1.6.2",
     "pino": "^8.17.1",
     "pino-pretty": "^10.3.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.5",
     "typescript": "^5.3.3",
     "ts-node": "^10.9.2",

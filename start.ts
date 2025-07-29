@@ -24,7 +24,7 @@ class UltraMarketProfessional {
       name: 'Auth Service',
       port: 3001,
       command: 'ts-node src/index.ts',
-      cwd: 'backend/core/auth-service',
+      cwd: 'services/core/auth-service',
       healthCheck: 'http://localhost:3001/health',
       tier: 1,
       priority: 1,
@@ -33,7 +33,7 @@ class UltraMarketProfessional {
       name: 'Product Service',
       port: 3002,
       command: 'ts-node src/index.ts',
-      cwd: 'backend/business/product-service',
+      cwd: 'services/business/product-service',
       healthCheck: 'http://localhost:3002/health',
       tier: 1,
       priority: 2,
@@ -42,7 +42,7 @@ class UltraMarketProfessional {
       name: 'API Gateway',
       port: 3007,
       command: 'ts-node src/main.ts', 
-      cwd: 'backend/core/api-gateway',
+      cwd: 'services/core/api-gateway',
       healthCheck: 'http://localhost:3007/health',
       tier: 1,
       priority: 3
@@ -62,7 +62,7 @@ class UltraMarketProfessional {
       name: 'Cart Service',
       port: 3003,
       command: 'ts-node src/main.ts',
-      cwd: 'backend/business/cart-service',
+      cwd: 'services/business/cart-service',
       healthCheck: 'http://localhost:3003/health',
       tier: 2,
       priority: 5
@@ -71,7 +71,7 @@ class UltraMarketProfessional {
       name: 'Order Service',
       port: 3004,
       command: 'ts-node src/main.ts',
-      cwd: 'backend/business/order-service',
+      cwd: 'services/business/order-service',
       healthCheck: 'http://localhost:3004/health',
       tier: 2,
       priority: 6
@@ -80,7 +80,7 @@ class UltraMarketProfessional {
       name: 'Payment Service',
       port: 3005,
       command: 'ts-node src/main.ts',
-      cwd: 'backend/business/payment-service',
+      cwd: 'services/business/payment-service',
       healthCheck: 'http://localhost:3005/health',
       tier: 2,
       priority: 7
@@ -100,7 +100,7 @@ class UltraMarketProfessional {
       name: 'Analytics Service',
       port: 3006,
       command: 'ts-node src/main.ts',
-      cwd: 'backend/analytics/analytics-service',
+      cwd: 'services/analytics/analytics-service',
       healthCheck: 'http://localhost:3006/health',
       tier: 3,
       priority: 9

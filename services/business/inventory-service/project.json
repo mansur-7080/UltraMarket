@@ -1,6 +1,0 @@
-{
-  "name": "inventory-service",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/business/inventory-service/src",
-  "projectType": "application"
-}

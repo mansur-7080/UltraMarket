@@ -1,6 +1,0 @@
-{
-  "name": "recommendation-service",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "microservices/ml-ai/recommendation-service/src",
-  "projectType": "application"
-}
