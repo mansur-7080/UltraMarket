@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -7,22 +8,22 @@ import axios from 'axios';
 
 const app = express();
 const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3007;
-const HOST = process.env['HOST') ?? '0.0.0.0';
+const HOST = process.env['HOST'] || '0.0.0.0';
 
 // Security middleware
 app.use(helmet());
 app.use(compression());
 app.use(
   cors({
-    origin: process.env['CORS_ORIGIN'] ?? '*',
+    origin: process.env['CORS_ORIGIN'] || '*',
     credentials: true,
   })
 );
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '900000', 10),
-  max: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] ?? '1000', 10),
+  windowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] || '900000', 10),
+  max: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '1000', 10),
   message: 'Too many requests from this IP',
   standardHeaders: true,
   legacyHeaders: false,
@@ -39,7 +40,7 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     service: 'api-gateway',
     timestamp: new Date().toISOString(),
-    version: process.env['APP_VERSION'] ?? '1.0.0',
+    version: process.env['APP_VERSION'] || '1.0.0',
   });
 });
 
@@ -62,11 +63,11 @@ app.use('/auth/*', async (req, res) => {
   }
 });
 
-app.use('/products/*', async (req, res) => {
+app.use('/api/products*', async (req, res) => {
   try {
     const response = await axios({
       method: req.method,
-      url: `http://localhost:3002${req.url.replace('/products', '')}`,
+      url: `http://localhost:3002${req.url}`,
       data: req.body,
       headers: req.headers,
     });
