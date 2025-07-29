@@ -6,3 +6,15 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "npm run dev"]
+
+[workflows]
+runButton = "UltraMarket Platform"
+
+[[workflows.workflow]]
+name = "UltraMarket Platform"
+author = 43741096
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "ts-node start.ts minimal"

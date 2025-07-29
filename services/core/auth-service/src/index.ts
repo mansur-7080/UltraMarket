@@ -9,7 +9,7 @@ import { connectDatabase } from './config/database';
 
 const app = express();
 const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3001;
-const HOST = process.env['HOST'] ?? 'localhost';
+const HOST = process.env['HOST'] ?? '0.0.0.0';
 const JWT_SECRET = process.env['JWT_SECRET'] || 'your-secret-key';
 
 // Security middleware

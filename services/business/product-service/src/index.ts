@@ -4,8 +4,6 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { connectDatabase } from './config/database';
-import Product from './models/Product';
-import Category from './models/Category';
 
 const app = express();
 const PORT = process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3002;
@@ -45,138 +43,77 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Mock products data
+const mockProducts = [
+  {
+    id: '1',
+    name: 'Gaming Laptop ASUS ROG',
+    price: 15000000,
+    category: 'laptops',
+    description: 'Professional gaming laptop',
+    inStock: true
+  },
+  {
+    id: '2', 
+    name: 'iPhone 15 Pro',
+    price: 12000000,
+    category: 'phones',
+    description: 'Latest iPhone model',
+    inStock: true
+  }
+];
+
 // Product routes
-app.get('/api/v1/products', async (req, res) => {
-  try {
-    const { page = 1, limit = 10, category, search } = req.query;
-    
-    // Mock data for now
-    const mockProducts = [
-      { id: '1', name: 'Sample Product 1', price: 100, category: 'Electronics' },
-      { id: '2', name: 'Sample Product 2', price: 200, category: 'Clothing' }
-    ];
-
-    res.json({
-      success: true,
-      message: 'Products retrieved successfully',
-      data: {
-        products: mockProducts,
-        pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
-          total: mockProducts.length,
-          pages: 1
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error getting products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
+app.get('/api/v1/products', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Products retrieved successfully',
+    data: mockProducts
+  });
 });
 
-app.get('/api/v1/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Mock data for now
-    const mockProduct = { id, name: `Sample Product ${id}`, price: 100 };
-
-    res.json({
-      success: true,
-      message: 'Product retrieved successfully',
-      data: mockProduct
-    });
-  } catch (error) {
-    console.error('Error getting product:', error);
-    res.status(500).json({
+app.get('/api/v1/products/:id', (req, res) => {
+  const product = mockProducts.find(p => p.id === req.params.id);
+  if (!product) {
+    return res.status(404).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Product not found'
     });
   }
+
+  res.json({
+    success: true,
+    message: 'Product retrieved successfully',
+    data: product
+  });
 });
 
-app.post('/api/v1/products', async (req, res) => {
-  try {
-    const { name, description, price, category, image, stock } = req.body;
-    
-    if (!name || !description || !price || !category || !image) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, description, price, category, and image are required'
-      });
-    }
+app.post('/api/v1/products', (req, res) => {
+  const { name, price, category, description } = req.body;
 
-    // Mock response for now
-    const mockProduct = {
-      id: Date.now().toString(),
-      name,
-      description,
-      price: parseFloat(price),
-      category,
-      image,
-      stock: stock || 0
-    };
-
-    res.status(201).json({
-      success: true,
-      message: 'Product created successfully',
-      data: mockProduct
-    });
-  } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(500).json({
+  if (!name || !price || !category) {
+    return res.status(400).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Name, price, and category are required'
     });
   }
-});
 
-// Category routes
-app.get('/api/v1/categories', async (req, res) => {
-  try {
-    // Mock data for now
-    const mockCategories = [
-      { id: '1', name: 'Electronics', description: 'Electronic devices' },
-      { id: '2', name: 'Clothing', description: 'Fashion items' }
-    ];
-    
-    res.json({
-      success: true,
-      message: 'Categories retrieved successfully',
-      data: mockCategories
-    });
-  } catch (error) {
-    console.error('Error getting categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
+  const newProduct = {
+    id: (mockProducts.length + 1).toString(),
+    name,
+    price: parseInt(price),
+    category,
+    description: description || '',
+    inStock: true
+  };
 
-app.get('/api/v1/categories/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Mock data for now
-    const mockCategory = { id, name: `Category ${id}`, description: 'Sample category' };
+  mockProducts.push(newProduct);
 
-    res.json({
-      success: true,
-      message: 'Category retrieved successfully',
-      data: mockCategory
-    });
-  } catch (error) {
-    console.error('Error getting category:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
+  res.status(201).json({
+    success: true,
+    message: 'Product created successfully',
+    data: newProduct
+  });
 });
 
 // 404 handler
@@ -192,18 +129,15 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     await connectDatabase();
-
-    // Start server
-    app.listen(PORT, HOST, () => {
-      console.log(`Product service started successfully on ${HOST}:${PORT}`);
-    });
+    console.log('Database connected successfully');
   } catch (error) {
-    console.error('Failed to start product service', error);
-    // Start server even if database fails
-    app.listen(PORT, HOST, () => {
-      console.log(`Product service started successfully on ${HOST}:${PORT} (mock mode)`);
-    });
+    console.warn('Database connection failed, using mock data:', error);
   }
+
+  // Start server
+  app.listen(PORT, HOST, () => {
+    console.log(`Product service started successfully on ${HOST}:${PORT}`);
+  });
 }
 
 // Graceful shutdown
