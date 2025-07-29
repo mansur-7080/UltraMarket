@@ -1,0 +1,6 @@
+{
+  "name": "advanced-analytics-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/analytics/advanced-analytics-service/src",
+  "projectType": "application"
+}

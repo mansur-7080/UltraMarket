@@ -1,0 +1,227 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: user-service
+    url: http://user-service:3001
+    routes:
+      - name: user-routes
+        paths:
+          - /api/v1/users
+          - /api/v1/auth
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          hour: 1000
+      - name: cors
+        config:
+          origins: ["*"]
+          methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+          headers: ["Content-Type", "Authorization"]
+          exposed_headers: ["X-Total-Count"]
+          credentials: true
+          max_age: 3600
+
+  - name: product-service
+    url: http://product-service:3002
+    routes:
+      - name: product-routes
+        paths:
+          - /api/v1/products
+          - /api/v1/categories
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 200
+          hour: 2000
+      - name: cors
+        config:
+          origins: ["*"]
+          methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+          headers: ["Content-Type", "Authorization"]
+          exposed_headers: ["X-Total-Count"]
+          credentials: true
+          max_age: 3600
+
+  - name: order-service
+    url: http://order-service:3003
+    routes:
+      - name: order-routes
+        paths:
+          - /api/v1/orders
+          - /api/v1/cart
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 50
+          hour: 500
+      - name: cors
+        config:
+          origins: ["*"]
+          methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+          headers: ["Content-Type", "Authorization"]
+          exposed_headers: ["X-Total-Count"]
+          credentials: true
+          max_age: 3600
+
+  - name: payment-service
+    url: http://payment-service:3004
+    routes:
+      - name: payment-routes
+        paths:
+          - /api/v1/payments
+          - /api/v1/webhooks
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 30
+          hour: 300
+      - name: cors
+        config:
+          origins: ["*"]
+          methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+          headers: ["Content-Type", "Authorization"]
+          exposed_headers: ["X-Total-Count"]
+          credentials: true
+          max_age: 3600
+
+  - name: search-service
+    url: http://search-service:3005
+    routes:
+      - name: search-routes
+        paths:
+          - /api/v1/search
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 300
+          hour: 3000
+      - name: cors
+        config:
+          origins: ["*"]
+          methods: ["GET", "POST", "OPTIONS"]
+          headers: ["Content-Type", "Authorization"]
+          exposed_headers: ["X-Total-Count"]
+          credentials: true
+          max_age: 3600
+
+  - name: notification-service
+    url: http://notification-service:3006
+    routes:
+      - name: notification-routes
+        paths:
+          - /api/v1/notifications
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          hour: 1000
+      - name: cors
+        config:
+          origins: ["*"]
+          methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+          headers: ["Content-Type", "Authorization"]
+          exposed_headers: ["X-Total-Count"]
+          credentials: true
+          max_age: 3600
+
+# Global plugins
+plugins:
+  - name: prometheus
+    config:
+      status_codes: true
+      latency: true
+      bandwidth: true
+      upstream_health: true
+      http_method: true
+      http_status: true
+      consumer: true
+      custom_metrics_by_latency_and_bandwidth: true
+      custom_metrics_by_status_and_http_method: true
+      custom_metrics_by_consumer: true
+      custom_metrics_by_route: true
+      custom_metrics_by_service: true
+      custom_metrics_by_host: true
+      custom_metrics_by_http_status: true
+      custom_metrics_by_http_method: true
+      custom_metrics_by_http_status_and_http_method: true
+      custom_metrics_by_http_status_and_route: true
+      custom_metrics_by_http_status_and_service: true
+      custom_metrics_by_http_status_and_consumer: true
+      custom_metrics_by_http_status_and_host: true
+      custom_metrics_by_http_method_and_route: true
+      custom_metrics_by_http_method_and_service: true
+      custom_metrics_by_http_method_and_consumer: true
+      custom_metrics_by_http_method_and_host: true
+      custom_metrics_by_route_and_service: true
+      custom_metrics_by_route_and_consumer: true
+      custom_metrics_by_route_and_host: true
+      custom_metrics_by_service_and_consumer: true
+      custom_metrics_by_service_and_host: true
+      custom_metrics_by_consumer_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_route: true
+      custom_metrics_by_http_status_and_http_method_and_service: true
+      custom_metrics_by_http_status_and_http_method_and_consumer: true
+      custom_metrics_by_http_status_and_http_method_and_host: true
+      custom_metrics_by_http_status_and_route_and_service: true
+      custom_metrics_by_http_status_and_route_and_consumer: true
+      custom_metrics_by_http_status_and_route_and_host: true
+      custom_metrics_by_http_status_and_service_and_consumer: true
+      custom_metrics_by_http_status_and_service_and_host: true
+      custom_metrics_by_http_status_and_consumer_and_host: true
+      custom_metrics_by_http_method_and_route_and_service: true
+      custom_metrics_by_http_method_and_route_and_consumer: true
+      custom_metrics_by_http_method_and_route_and_host: true
+      custom_metrics_by_http_method_and_service_and_consumer: true
+      custom_metrics_by_http_method_and_service_and_host: true
+      custom_metrics_by_http_method_and_consumer_and_host: true
+      custom_metrics_by_route_and_service_and_consumer: true
+      custom_metrics_by_route_and_service_and_host: true
+      custom_metrics_by_route_and_consumer_and_host: true
+      custom_metrics_by_service_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_service: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_consumer: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_service_and_consumer: true
+      custom_metrics_by_http_status_and_http_method_and_service_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_route_and_service_and_consumer: true
+      custom_metrics_by_http_status_and_route_and_service_and_host: true
+      custom_metrics_by_http_status_and_route_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_service_and_consumer_and_host: true
+      custom_metrics_by_http_method_and_route_and_service_and_consumer: true
+      custom_metrics_by_http_method_and_route_and_service_and_host: true
+      custom_metrics_by_http_method_and_route_and_consumer_and_host: true
+      custom_metrics_by_http_method_and_service_and_consumer_and_host: true
+      custom_metrics_by_route_and_service_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_service_and_consumer: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_service_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_service_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_route_and_service_and_consumer_and_host: true
+      custom_metrics_by_http_method_and_route_and_service_and_consumer_and_host: true
+      custom_metrics_by_http_status_and_http_method_and_route_and_service_and_consumer_and_host: true
+
+  - name: correlation-id
+    config:
+      header_name: X-Correlation-ID
+      generator: uuid
+      echo_downstream: true
+
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - X-Request-ID: ${uuid}
+          - X-Forwarded-For: ${client_ip}
+          - X-User-Agent: ${user_agent}
+      remove:
+        headers:
+          - X-Real-IP

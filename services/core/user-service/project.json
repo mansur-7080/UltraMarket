@@ -1,0 +1,53 @@
+{
+  "name": "user-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/core/user-service/user-service/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/node:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/microservices/core/user-service",
+        "main": "microservices/core/user-service/user-service/src/index.ts",
+        "tsConfig": "microservices/core/user-service/user-service/tsconfig.json",
+        "assets": ["microservices/core/user-service/user-service/src/assets"]
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false,
+          "fileReplacements": [
+            {
+              "replace": "microservices/core/user-service/user-service/src/environments/environment.ts",
+              "with": "microservices/core/user-service/user-service/src/environments/environment.prod.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/node:execute",
+      "options": {
+        "buildTarget": "user-service:build"
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["microservices/core/user-service/user-service/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/microservices/core/user-service"],
+      "options": {
+        "jestConfig": "microservices/core/user-service/user-service/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": ["scope:backend", "type:service", "domain:user"]
+}

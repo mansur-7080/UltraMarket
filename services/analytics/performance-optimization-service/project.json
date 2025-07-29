@@ -1,0 +1,6 @@
+{
+  "name": "performance-optimization-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/analytics/performance-optimization-service/src",
+  "projectType": "application"
+}

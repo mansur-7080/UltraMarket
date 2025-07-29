@@ -1,0 +1,52 @@
+/**
+ * Enhanced Product Service (Prisma Implementation)
+ * Entry point for the product service
+ */
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import compression from 'compression';
+import { enhancedProductPrismaRoutes } from './routes/enhanced-product-prisma.routes';
+
+// Initialize express app
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(helmet()); // Security headers
+app.use(cors()); // Enable CORS
+app.use(compression()); // Compress responses
+app.use(express.json()); // Parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(morgan('dev')); // HTTP request logging
+
+// Routes
+app.use('/api/v1', enhancedProductPrismaRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date(),
+    service: 'product-service',
+    version: '1.0.0',
+  });
+});
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(err.statusCode || 500).json({
+    error: err.code || 'INTERNAL_SERVER_ERROR',
+    message: err.message || 'An unexpected error occurred',
+    details: err.details,
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Product service running on port ${PORT}`);
+});
+
+export default app;

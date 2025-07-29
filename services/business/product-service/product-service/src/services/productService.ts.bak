@@ -1,0 +1,541 @@
+import ProductDatabase from '../database/ProductDatabase';
+import { IProduct, ICategory, IReview } from '../models';
+import { logger } from '@ultramarket/common';
+
+export interface ProductFilters {
+  category?: string;
+  subcategory?: string;
+  brand?: string;
+  minPrice?: number;
+  async getCategoryById(id: string): Promise<any> {
+    try {
+      // Try to find by slug first, then by id
+      let category = await this.database.getCategoryBySlug(id);
+      
+      if (!category) {
+        // If not found by slug, search through all categories for matching id
+        const allCategories = await this.database.getAllCategories();
+        
+        // Find by MongoDB _id
+        category = allCategories.find((cat: any) => cat._id.toString() === id);
+      }
+
+      if (!category) {
+        throw new Error('Category not found');
+      }
+      
+      return category;umber;
+  inStock?: boolean;
+  isActive?: boolean;
+  isFeatured?: boolean;
+  search?: string;
+  sku?: string;
+}
+
+export interface ProductSearchOptions {
+  filters: ProductFilters;
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface ProductResult {
+  products: any[];
+  total: number;
+  pages: number;
+  currentPage: number;
+}
+
+export class ProductService {
+  private database: ProductDatabase;
+
+  constructor() {
+    this.database = new ProductDatabase();
+  }
+
+  async createProduct(productData: Partial<IProduct>): Promise<any> {
+    try {
+      // Generate SKU if not provided
+      if (!productData.sku) {
+        productData.sku = this.generateSKU(productData.name || '', productData.brand || '');
+      }
+
+      // Check if SKU already exists
+      const existingProducts = await this.database.getAllProducts({ sku: productData.sku }, 1, 1);
+      if (existingProducts.products.length > 0) {
+        throw new Error('Product with this SKU already exists');
+      }
+
+      // Set default values
+      productData.isActive = productData.isActive !== undefined ? productData.isActive : true;
+      productData.isFeatured =
+        productData.isFeatured !== undefined ? productData.isFeatured : false;
+      productData.inStock = productData.quantity !== undefined ? productData.quantity > 0 : true;
+      
+      // Set initial rating (MongoDB uses nested objects instead of flat fields)
+      productData.rating = {
+        average: 0,
+        count: 0
+      };
+
+      // No need to stringify arrays/objects for MongoDB
+      // MongoDB stores these types natively
+      const product = await this.database.createProduct(
+        productData as Omit<Product, '_id' | 'createdAt' | 'updatedAt'>
+      );
+      );
+      logger.info(`Product service: Created product ${product._id}`);
+
+      return this.transformProduct(product);
+    } catch (error) {
+      logger.error('Product service: Error creating product:', error);
+      throw error;
+    }
+  }
+
+  async getProductById(id: string): Promise<any> {
+    try {
+      const product = await this.database.getProductById(id);
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      return this.transformProduct(product);
+    } catch (error) {
+      logger.error('Product service: Error getting product by ID:', error);
+      throw error;
+    }
+  }
+
+  async updateProduct(id: string, updates: Partial<IProduct>): Promise<any> {
+    try {
+      // Check if product exists
+      const existingProduct = await this.getProductById(id);
+      
+      // If SKU is being updated, check for duplicates
+      if (updates.sku) {
+        const existingProducts = await this.database.getAllProducts({ sku: updates.sku }, 1, 1);
+        if (existingProducts.products.length > 0 && existingProducts.products[0].id !== id) {
+          throw new Error('Product with this SKU already exists');
+        }
+      }
+
+      // Update stock status based on quantity
+      if (updates.quantity !== undefined) {
+        updates.inStock = updates.quantity > (updates.minQuantity || 0);
+      }
+
+      // No need to stringify arrays and objects for MongoDB
+      // MongoDB stores them natively
+      
+      // Handle rating updates if provided
+      if (updates.rating !== undefined) {
+        updates.rating = {
+          average: updates.rating.average ?? existingProduct.rating?.average ?? 0,
+          count: updates.rating.count ?? existingProduct.rating?.count ?? 0
+        };
+      }
+
+      const product = await this.database.updateProduct(id, updates);
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      logger.info(`Product service: Updated product ${product._id}`);
+      return this.transformProduct(product);
+    } catch (error) {
+      logger.error('Product service: Error updating product:', error);
+      throw error;
+    }
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    try {
+      const success = this.database.deleteProduct(id);
+
+      if (!success) {
+        throw new Error('Product not found');
+      }
+
+      logger.info(`Product service: Deleted product ${id}`);
+    } catch (error) {
+      logger.error('Product service: Error deleting product:', error);
+      throw error;
+    }
+  }
+
+  async searchProducts(options: ProductSearchOptions): Promise<ProductResult> {
+    try {
+      const results = await this.database.getAllProducts(
+        options.filters,
+        options.page,
+        options.limit
+      );
+      
+      const { products, total } = results;
+      const pages = Math.ceil(total / options.limit);
+      const transformedProducts = products.map((product: any) => this.transformProduct(product));
+
+      const result = {
+        products: transformedProducts,
+        total,
+        pages,
+        currentPage: options.page,
+      };
+
+      logger.info(`Product service: Found ${total} products`);
+      return result;
+    } catch (error) {
+      logger.error('Product service: Error searching products:', error);
+      throw error;
+    }
+  }
+
+  async getFeaturedProducts(limit: number = 10): Promise<IProduct[]> {
+    try {
+      const { products } = await this.database.getAllProducts(
+        { isFeatured: true, isActive: true },
+        1,
+        limit
+      );
+
+      return products.map((p) => this.transformProduct(p));
+    } catch (error) {
+      logger.error('Product service: Error getting featured products:', error);
+      throw error;
+    }
+  }
+
+  async getRelatedProducts(productId: string, limit: number = 6): Promise<any[]> {
+    try {
+      const product = await this.getProductById(productId);
+
+      const results = await this.database.getAllProducts(
+        {
+          category: product.category,
+          isActive: true,
+        },
+        1,
+        limit + 1
+      );
+
+      // Remove the current product from results
+      return results.products
+        .filter((p: any) => p._id.toString() !== productId)
+        .slice(0, limit)
+        .map((p: any) => this.transformProduct(p));
+    } catch (error) {
+      logger.error('Product service: Error getting related products:', error);
+      throw error;
+    }
+  }
+
+  async updateInventory(id: string, quantity: number): Promise<IProduct> {
+    try {
+      const product = await this.getProductById(id);
+
+      const newQuantity = product.quantity + quantity;
+      if (newQuantity < 0) {
+        throw new Error('Insufficient inventory');
+      }
+
+      const updatedProduct = await this.updateProduct(id, {
+        quantity: newQuantity,
+        inStock: newQuantity > (product.minQuantity || 0),
+      });
+
+      logger.info(`Product service: Updated inventory for ${id}: ${quantity}`);
+      return updatedProduct;
+    } catch (error) {
+      logger.error('Product service: Error updating inventory:', error);
+      throw error;
+    }
+  }
+
+  // Category methods
+  async createCategory(categoryData: Partial<ICategory>): Promise<any> {
+    try {
+      // Prepare category data for MongoDB
+      const categoryToCreate = {
+        name: categoryData.name || '',
+        slug: categoryData.slug || categoryData.name?.toLowerCase().replace(/\s+/g, '-') || '',
+        description: categoryData.description,
+        parentCategory: categoryData.parentCategory, // Using the correct field name for MongoDB
+        image: categoryData.image,
+        isActive: categoryData.isActive ?? true,
+        sortOrder: categoryData.sortOrder ?? 0
+      };
+
+      // TODO: Add the createCategory method to the database class
+      // For now, we'll simulate it
+      logger.info('Category would be created:', categoryToCreate);
+      
+      // Return mock data with the correct structure
+      return {
+        ...categoryToCreate,
+        _id: `cat_${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    } catch (error) {
+      logger.error('Error creating category:', error);
+      throw error;
+    }
+  }
+
+  async getCategories(parentId?: string): Promise<any[]> {
+    try {
+      const allCategories = await this.database.getAllCategories();
+      if (parentId !== undefined) {
+        return allCategories.filter((cat: any) => 
+          cat.parentCategory && cat.parentCategory.toString() === parentId
+        );
+      }
+      return allCategories;
+    } catch (error) {
+      logger.error('Error getting categories:', error);
+      throw error;
+    }
+  }
+
+  async getCategoryById(id: string): Promise<ICategory> {
+    try {
+      // Try to find by slug first, then by id
+      let category = await this.database.getCategoryBySlug(id);
+      if (!category) {
+        // If not found by slug, search through all categories for matching id
+        const allCategories = await this.database.getAllCategories();
+        category = allCategories.find((cat: any) => (cat.id === id || cat._id?.toString() === id)) || null;
+      }
+
+      if (!category) {
+        throw new Error('Category not found');
+      }
+      return category as ICategory;
+    } catch (error) {
+      logger.error('Error getting category by ID:', error);
+      throw error;
+    }
+  }
+
+  async updateCategory(id: string, categoryData: Partial<ICategory>): Promise<ICategory> {
+    try {
+      // For now, return the category with updated data - implement full update later
+      const existingCategory = await this.getCategoryById(id);
+      const updatedCategory: ICategory = {
+        ...existingCategory,
+        ...categoryData,
+        id: existingCategory.id, // Preserve original ID
+        updatedAt: new Date(),
+      };
+
+      logger.info('Category would be updated:', id);
+      return updatedCategory;
+    } catch (error) {
+      logger.error('Error updating category:', error);
+      throw error;
+    }
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    try {
+      // Check if category exists first
+      await this.getCategoryById(id);
+      // For now, just log - implement full deletion later
+      logger.info('Category would be deleted:', id);
+    } catch (error) {
+      logger.error('Error deleting category:', error);
+      throw error;
+    }
+  }
+
+  // Review methods (simplified - you could extend with a full review system)
+  async createReview(reviewData: any): Promise<any> {
+    try {
+      // For now, return a mock review - you could implement a full review system
+      const review = {
+        id: `review_${Date.now()}`,
+        productId: reviewData.productId,
+        userId: reviewData.userId,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      logger.info('Review created:', review.id);
+      return review;
+    } catch (error) {
+      logger.error('Error creating review:', error);
+      throw error;
+    }
+  }
+
+  async getProductReviews(productId: string, page = 1, limit = 10): Promise<any> {
+    try {
+      // For now, return mock reviews - you could implement a full review system
+      const reviews = [
+        {
+          id: `review_${Date.now()}`,
+          productId,
+          userId: 'user123',
+          rating: 5,
+          comment: 'Great product!',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+
+      return {
+        reviews,
+        total: reviews.length,
+        pages: 1,
+        currentPage: page,
+      };
+    } catch (error) {
+      logger.error('Error getting product reviews:', error);
+      throw error;
+    }
+  }
+
+  async getProductBySku(sku: string): Promise<IProduct> {
+    try {
+      const productsResult = await this.database.getAllProducts({ sku }, 1, 1);
+      if (productsResult.products.length === 0) {
+        throw new Error('Product not found');
+      }
+      return this.transformProduct(productsResult.products[0]);
+    } catch (error) {
+      logger.error('Error getting product by SKU:', error);
+      throw error;
+    }
+  }
+
+  async checkProductAvailability(productIds: string[]): Promise<any[]> {
+    try {
+      const availability = [];
+      for (const id of productIds) {
+        try {
+          const product = await this.getProductById(id);
+          availability.push({
+            productId: id,
+            available: product.inStock,
+            quantity: product.quantity,
+          });
+        } catch {
+          availability.push({
+            productId: id,
+            available: false,
+            quantity: 0,
+          });
+        }
+      }
+      return availability;
+    } catch (error) {
+      logger.error('Error checking product availability:', error);
+      throw error;
+    }
+  }
+
+  async getCategoryBySlug(slug: string): Promise<ICategory> {
+    try {
+      const category = this.database.getCategoryBySlug(slug);
+      if (!category) {
+        throw new Error('Category not found');
+      }
+      return category;
+    } catch (error) {
+      logger.error('Error getting category by slug:', error);
+      throw error;
+    }
+  }
+
+  async getProductStats(): Promise<any> {
+    try {
+      const allProducts = this.database.getAllProducts({}, 1, 1000000); // Get all products for stats
+      const categories = await this.database.getAllCategories();
+
+      const stats = {
+        totalProducts: allProducts.total,
+        totalCategories: categories.length,
+        inStockProducts: allProducts.products.filter((p: any) => p.inStock).length,
+        featuredProducts: allProducts.products.filter((p: any) => p.isFeatured).length,
+        averagePrice:
+          allProducts.products.reduce((sum: number, p: any) => sum + p.price, 0) / allProducts.total || 0,
+        topCategories: categories.slice(0, 5).map((cat) => ({
+          name: cat.name,
+          slug: cat.slug,
+          productCount: allProducts.products.filter((p: any) => p.category === cat.name).length,
+        })),
+      };
+
+      return stats;
+    } catch (error) {
+      logger.error('Error getting product stats:', error);
+      throw error;
+    }
+  }
+
+  private generateSKU(name: string, brand: string): string {
+    const nameCode = name
+      .substring(0, 3)
+      .toUpperCase()
+      .replace(/[^A-Z]/g, '');
+    const brandCode = brand
+      .substring(0, 2)
+      .toUpperCase()
+      .replace(/[^A-Z]/g, '');
+    const timestamp = Date.now().toString().slice(-6);
+
+    return `${brandCode}${nameCode}${timestamp}`;
+  }
+
+  private transformProduct(product: any): any {
+    // With MongoDB, we don't need to parse JSON strings anymore
+    // Instead, we'll standardize the document format for the API
+    if (!product) return null;
+    
+    // Convert Mongoose document to plain object if needed
+    const doc = product.toObject ? product.toObject() : product;
+    
+    // Standardize the response format (convert _id to id for API consistency)
+    const transformed: any = {
+      id: doc._id.toString(),
+      name: doc.name,
+      description: doc.description,
+      shortDescription: doc.shortDescription,
+      price: doc.price,
+      originalPrice: doc.originalPrice,
+      discount: doc.discount,
+      category: doc.category,
+      subcategory: doc.subcategory,
+      brand: doc.brand,
+      sku: doc.sku,
+      images: doc.images || [],
+      specifications: doc.specifications || {},
+      inStock: doc.inStock,
+      quantity: doc.quantity,
+      minQuantity: doc.minQuantity,
+      weight: doc.weight,
+      dimensions: doc.dimensions,
+      tags: doc.tags || [],
+      rating_average: doc.rating?.average || 0,
+      rating_count: doc.rating?.count || 0,
+      isActive: doc.isActive,
+      isFeatured: doc.isFeatured,
+      seoTitle: doc.seoTitle,
+      seoDescription: doc.seoDescription,
+      seoKeywords: doc.seoKeywords || [],
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt
+    };
+    
+    return transformed;
+  }
+}
+
+// Export types
+export { IProduct, ICategory };

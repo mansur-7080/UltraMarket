@@ -1,0 +1,6 @@
+{
+  "name": "file-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/platform/file-service/src",
+  "projectType": "application"
+}

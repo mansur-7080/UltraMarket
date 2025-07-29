@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Primary Meta Tags -->
+  <title>UltraMarket - Professional E-Commerce Platform</title>
+  <meta name="title" content="UltraMarket - Professional E-Commerce Platform" />
+  <meta name="description" content="UltraMarket - Modern TypeScript e-commerce platform with advanced features, AI recommendations, and professional design." />
+  <meta name="keywords" content="e-commerce, online shopping, ultramarket, typescript, react, professional" />
+  <meta name="author" content="UltraMarket Team" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ultramarket.com/" />
+  <meta property="og:title" content="UltraMarket - Professional E-Commerce Platform" />
+  <meta property="og:description" content="Modern TypeScript e-commerce platform with advanced features, AI recommendations, and professional design." />
+  <meta property="og:image" content="/og-image.jpg" />
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://ultramarket.com/" />
+  <meta property="twitter:title" content="UltraMarket - Professional E-Commerce Platform" />
+  <meta property="twitter:description" content="Modern TypeScript e-commerce platform with advanced features, AI recommendations, and professional design." />
+  <meta property="twitter:image" content="/twitter-image.jpg" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  
+  <!-- Performance & Security -->
+  <meta name="theme-color" content="#000000" />
+  <meta name="msapplication-TileColor" content="#000000" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="format-detection" content="telephone=no" />
+  
+  <!-- Preconnect to external domains for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+  <!-- Font loading -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Critical CSS (if any) -->
+  <style>
+    /* Critical above-the-fold styles */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-color: #ffffff;
+      color: #1a202c;
+    }
+    
+    #root {
+      min-height: 100vh;
+    }
+    
+    /* Loading spinner */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-size: 18px;
+      color: #4a5568;
+    }
+    
+    /* Hide loading when app is ready */
+    .app-loaded .loading {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- No-JavaScript fallback -->
+  <noscript>
+    <div style="padding: 2rem; text-align: center; background: #fed7d7; color: #c53030; font-family: Arial, sans-serif;">
+      <h2>JavaScript Required</h2>
+      <p>UltraMarket requires JavaScript to be enabled in your browser for the best experience.</p>
+      <p>Please enable JavaScript and refresh the page.</p>
+    </div>
+  </noscript>
+  
+  <!-- Main Application Container -->
+  <div id="root">
+    <!-- Loading state shown while React loads -->
+    <div class="loading">
+      <div>Loading UltraMarket...</div>
+    </div>
+  </div>
+  
+  <!-- Application Scripts -->
+  <script type="module" src="/src/main.tsx"></script>
+  
+  <!-- Analytics (to be added in production) -->
+  <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script> -->
+</body>
+</html> 

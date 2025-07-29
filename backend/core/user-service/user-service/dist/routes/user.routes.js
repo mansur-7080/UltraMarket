@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const user_controller_1 = require("../controllers/user.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const validation_middleware_1 = require("../middleware/validation.middleware");
+const user_schemas_1 = require("../schemas/user.schemas");
+const router = (0, express_1.Router)();
+router.post('/', (0, validation_middleware_1.validateBody)(user_schemas_1.createUserSchema), user_controller_1.userController.createUser);
+router.get('/', auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('ADMIN', 'SUPER_ADMIN'), (0, validation_middleware_1.validateQuery)(user_schemas_1.getUsersQuerySchema), user_controller_1.userController.getUsers);
+router.get('/me', auth_middleware_1.authenticate, user_controller_1.userController.getCurrentUser);
+router.put('/me', auth_middleware_1.authenticate, (0, validation_middleware_1.validateBody)(user_schemas_1.updateUserSchema), user_controller_1.userController.updateCurrentUser);
+router.put('/me/password', auth_middleware_1.authenticate, (0, validation_middleware_1.validateBody)(user_schemas_1.changePasswordSchema), user_controller_1.userController.changePassword);
+router.put('/me/email', auth_middleware_1.authenticate, (0, validation_middleware_1.validateBody)(user_schemas_1.updateEmailSchema), user_controller_1.userController.updateEmail);
+router.delete('/me', auth_middleware_1.authenticate, user_controller_1.userController.deleteCurrentUser);
+router.get('/stats', auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('ADMIN', 'SUPER_ADMIN'), user_controller_1.userController.getUserStats);
+router.get('/:userId', auth_middleware_1.authenticate, (0, auth_middleware_1.authorizeSelfOrAdmin)(), (0, validation_middleware_1.validateParams)(user_schemas_1.userIdParamSchema), user_controller_1.userController.getUserById);
+router.put('/:userId', auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('ADMIN', 'SUPER_ADMIN'), (0, validation_middleware_1.validateParams)(user_schemas_1.userIdParamSchema), user_controller_1.userController.updateUserById);
+router.delete('/:userId', auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('ADMIN', 'SUPER_ADMIN'), (0, validation_middleware_1.validateParams)(user_schemas_1.userIdParamSchema), user_controller_1.userController.deleteUserById);
+exports.default = router;
+//# sourceMappingURL=user.routes.js.map

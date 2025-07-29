@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: product-service-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ultramarket_products
+    ports:
+      - '5432:5432'
+    volumes:
+      - product-postgres-data:/var/lib/postgresql/data
+    networks:
+      - product-service-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: product-service
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ultramarket_products
+      JWT_SECRET: local-development-secret
+    ports:
+      - '3003:3003'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - product-service-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+networks:
+  product-service-network:
+    driver: bridge
+
+volumes:
+  product-postgres-data:

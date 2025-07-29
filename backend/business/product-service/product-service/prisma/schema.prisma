@@ -1,0 +1,272 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                String            @id @default(uuid())
+  name              String
+  slug              String            @unique
+  description       String?
+  shortDescription  String?
+  sku               String            @unique
+  barcode           String?
+  brand             String?
+  model             String?
+  weight            Decimal?          @db.Decimal(8, 2)
+  dimensions        Json?
+  price             Decimal           @db.Decimal(10, 2)
+  comparePrice      Decimal?          @db.Decimal(10, 2)
+  costPrice         Decimal?          @db.Decimal(10, 2)
+  currency          String            @default("USD")
+  status            ProductStatus     @default(DRAFT)
+  type              ProductType       @default(PHYSICAL)
+  isActive          Boolean           @default(true)
+  isFeatured        Boolean           @default(false)
+  isBestSeller      Boolean           @default(false)
+  isNewArrival      Boolean           @default(false)
+  isOnSale          Boolean           @default(false)
+  salePercentage    Int?              @db.SmallInt
+  saleStartDate     DateTime?
+  saleEndDate       DateTime?
+  metaTitle         String?
+  metaDescription   String?
+  metaKeywords      String?
+  tags              String[]
+  attributes        Json?
+  specifications    Json?
+  warranty          String?
+  returnPolicy      String?
+  shippingInfo      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  publishedAt       DateTime?
+
+  // Relations
+  category          Category          @relation(fields: [categoryId], references: [id])
+  categoryId        String
+  vendor            User?             @relation(fields: [vendorId], references: [id])
+  vendorId          String?
+  variants          ProductVariant[]
+  images            ProductImage[]
+  reviews           Review[]
+  inventory         Inventory?
+  relations         ProductRelation[] @relation("ProductToProduct")
+  relatedFrom       ProductRelation[] @relation("ProductFromProduct")
+  priceHistory      PriceHistory[]
+
+  @@index([categoryId])
+  @@index([vendorId])
+  @@index([sku])
+  @@index([status])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("products")
+}
+
+model Category {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  description     String?
+  image           String?
+  parentId        String?
+  parent          Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryHierarchy")
+  products        Product[]
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([parentId])
+  @@index([slug])
+  @@index([isActive])
+  @@map("categories")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  username        String    @unique
+  firstName       String
+  lastName        String
+  role            UserRole  @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  products        Product[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@map("users")
+}
+
+model ProductVariant {
+  id          String   @id @default(uuid())
+  productId   String
+  name        String
+  sku         String   @unique
+  barcode     String?
+  price       Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  costPrice   Decimal? @db.Decimal(10, 2)
+  weight      Decimal? @db.Decimal(8, 2)
+  dimensions  Json?
+  attributes  Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory   Inventory?
+
+  @@index([productId])
+  @@index([sku])
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id          String   @id @default(uuid())
+  productId   String
+  url         String
+  altText     String?
+  sortOrder   Int      @default(0)
+  isMain      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Inventory {
+  id              String            @id @default(uuid())
+  productId       String?           @unique
+  variantId       String?           @unique
+  quantity        Int               @default(0)
+  reservedQuantity Int              @default(0)
+  availableQuantity Int             @default(0)
+  lowStockThreshold Int             @default(10)
+  reorderPoint    Int               @default(5)
+  reorderQuantity Int               @default(50)
+  location        String?
+  warehouse       String?
+  lastUpdated     DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  product         Product?          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant         ProductVariant?   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([variantId])
+  @@index([quantity])
+  @@map("inventory")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  productId   String
+  userId      String
+  rating      Int      @db.SmallInt
+  title       String?
+  comment     String?
+  isVerified  Boolean  @default(false)
+  isHelpful   Int      @default(0)
+  isNotHelpful Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("reviews")
+}
+
+model ProductRelation {
+  id              String   @id @default(uuid())
+  productId       String
+  relatedProductId String
+  relationType    String   @default("related") // related, upsell, cross-sell
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  // Relations
+  product         Product  @relation("ProductToProduct", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProduct  Product  @relation("ProductFromProduct", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId])
+  @@index([productId])
+  @@index([relatedProductId])
+  @@map("product_relations")
+}
+
+model SearchLog {
+  id          String   @id @default(uuid())
+  query       String
+  filters     Json?
+  results     Int
+  userId      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([query])
+  @@index([createdAt])
+  @@map("search_logs")
+}
+
+model PriceHistory {
+  id          String   @id @default(uuid())
+  productId   String
+  variantId   String?
+  price       Decimal  @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  changeType  String   // increase, decrease, set
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([createdAt])
+  @@map("price_history")
+}
+
+// Enums
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ProductType {
+  PHYSICAL
+  DIGITAL
+  SERVICE
+}
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
+}

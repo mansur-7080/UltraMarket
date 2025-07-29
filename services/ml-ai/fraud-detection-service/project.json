@@ -1,0 +1,6 @@
+{
+  "name": "fraud-detection-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/ml-ai/fraud-detection-service/src",
+  "projectType": "application"
+}

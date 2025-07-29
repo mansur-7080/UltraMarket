@@ -1,0 +1,21 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Package fayllarini nusxalash
+COPY package*.json ./
+
+# Dependencies o'rnatish
+RUN npm install
+
+# Kodlarni nusxalash
+COPY . .
+
+# Prisma generate
+RUN npx prisma generate
+
+# Port ochish
+EXPOSE 3002
+
+# Development rejimda ishga tushirish
+CMD ["npm", "run", "dev"] 

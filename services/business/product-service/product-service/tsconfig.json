@@ -1,0 +1,16 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./",
+    "paths": {
+      "@ultramarket/shared": ["../../../../libs/shared/src"],
+      "@ultramarket/shared/*": ["../../../../libs/shared/src/*"],
+      "@ultramarket/types": ["../../../../libs/types/src"],
+      "@ultramarket/types/*": ["../../../../libs/types/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

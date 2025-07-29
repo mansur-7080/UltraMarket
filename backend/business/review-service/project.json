@@ -1,0 +1,6 @@
+{
+  "name": "review-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/business/review-service/src",
+  "projectType": "application"
+}

@@ -1,0 +1,395 @@
+/**
+ * 🔐 TWO-FACTOR AUTHENTICATION SERVICE - UltraMarket Auth
+ * 
+ * Professional 2FA implementation with multiple methods
+ * TOTP, SMS, Email, Backup codes support
+ * 
+ * @author UltraMarket Development Team
+ * @version 1.0.0
+ * @date 2024-12-28
+ */
+
+import { authenticator } from 'otplib';
+import { createClient } from 'redis';
+import { logger } from '../utils/logger';
+import { emailService } from './email.service';
+
+/**
+ * Two-Factor Authentication Service
+ * Supports TOTP, SMS, Email, and Backup Codes
+ */
+
+interface TwoFactorConfig {
+  issuer: string;
+  algorithm: string;
+  digits: number;
+  period: number;
+  window: number;
+}
+
+interface TwoFactorMethod {
+  id: string;
+  type: 'TOTP' | 'SMS' | 'EMAIL';
+  secret?: string;
+  phone?: string;
+  email?: string;
+  isEnabled: boolean;
+  isVerified: boolean;
+  createdAt: Date;
+  lastUsed?: Date;
+}
+
+interface BackupCode {
+  id: string;
+  code: string;
+  isUsed: boolean;
+  usedAt?: Date;
+  createdAt: Date;
+}
+
+class TwoFactorService {
+  private redis: any;
+  private config: TwoFactorConfig;
+
+  constructor() {
+    this.config = {
+      issuer: 'UltraMarket',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      window: 1
+    };
+    this.initializeRedis();
+  }
+
+  private async initializeRedis(): Promise<void> {
+    try {
+      this.redis = createClient({
+        url: process.env['REDIS_URL'] || 'redis://localhost:6379'
+      });
+      await this.redis.connect();
+      logger.info('🔐 2FA service Redis connected');
+    } catch (error) {
+      logger.error('❌ 2FA service Redis connection failed:', error);
+    }
+  }
+
+  /**
+   * Generate TOTP secret for user
+   */
+  async generateTOTPSecret(userId: string, email: string): Promise<{ secret: string; qrCode: string; backupCodes: string[] }> {
+    try {
+      const secret = authenticator.generateSecret();
+      const otpauth = authenticator.keyuri(email, this.config.issuer, secret);
+      
+      // Generate backup codes
+      const backupCodes = this.generateBackupCodes();
+      
+      // Store in Redis
+      await this.redis.setEx(`2fa:${userId}:secret`, 300, secret); // 5 minutes TTL
+      await this.redis.setEx(`2fa:${userId}:backup_codes`, 86400, JSON.stringify(backupCodes)); // 24 hours TTL
+      
+      logger.info('🔐 TOTP secret generated', { userId, email });
+      
+      return {
+        secret,
+        qrCode: otpauth,
+        backupCodes
+      };
+    } catch (error) {
+      logger.error('❌ Failed to generate TOTP secret:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify TOTP token
+   */
+  async verifyTOTP(userId: string, token: string): Promise<boolean> {
+    try {
+      const secret = await this.redis.get(`2fa:${userId}:secret`);
+      if (!secret) {
+        return false;
+      }
+
+      const isValid = authenticator.verify({
+        token,
+        secret,
+        window: this.config.window
+      });
+
+      if (isValid) {
+        await this.redis.del(`2fa:${userId}:secret`);
+        logger.info('🔐 TOTP verification successful', { userId });
+      }
+
+      return isValid;
+    } catch (error) {
+      logger.error('❌ TOTP verification failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate SMS verification code
+   */
+  async generateSMSCode(userId: string, phone: string): Promise<string> {
+    try {
+      const code = this.generateRandomCode(6);
+      const ttl = 300; // 5 minutes
+      
+      await this.redis.setEx(`2fa:${userId}:sms:${phone}`, ttl, code);
+      
+      // Send SMS (mock for now)
+      logger.info('📱 SMS verification code generated', { userId, phone, code });
+      
+      return code;
+    } catch (error) {
+      logger.error('❌ Failed to generate SMS code:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify SMS code
+   */
+  async verifySMSCode(userId: string, phone: string, code: string): Promise<boolean> {
+    try {
+      const storedCode = await this.redis.get(`2fa:${userId}:sms:${phone}`);
+      if (!storedCode) {
+        return false;
+      }
+
+      const isValid = storedCode === code;
+      
+      if (isValid) {
+        await this.redis.del(`2fa:${userId}:sms:${phone}`);
+        logger.info('📱 SMS verification successful', { userId, phone });
+      }
+
+      return isValid;
+    } catch (error) {
+      logger.error('❌ SMS verification failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate Email verification code
+   */
+  async generateEmailCode(userId: string, email: string, name: string): Promise<string> {
+    try {
+      const code = this.generateRandomCode(6);
+      const ttl = 300; // 5 minutes
+      
+      await this.redis.setEx(`2fa:${userId}:email:${email}`, ttl, code);
+      
+      // Send email
+      await emailService.send2FACode(email, name, code);
+      
+      logger.info('📧 Email verification code generated', { userId, email });
+      
+      return code;
+    } catch (error) {
+      logger.error('❌ Failed to generate email code:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify Email code
+   */
+  async verifyEmailCode(userId: string, email: string, code: string): Promise<boolean> {
+    try {
+      const storedCode = await this.redis.get(`2fa:${userId}:email:${email}`);
+      if (!storedCode) {
+        return false;
+      }
+
+      const isValid = storedCode === code;
+      
+      if (isValid) {
+        await this.redis.del(`2fa:${userId}:email:${email}`);
+        logger.info('📧 Email verification successful', { userId, email });
+      }
+
+      return isValid;
+    } catch (error) {
+      logger.error('❌ Email verification failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate backup codes
+   */
+  private generateBackupCodes(): string[] {
+    const codes: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      codes.push(this.generateRandomCode(8));
+    }
+    return codes;
+  }
+
+  /**
+   * Verify backup code
+   */
+  async verifyBackupCode(userId: string, code: string): Promise<boolean> {
+    try {
+      const backupCodesJson = await this.redis.get(`2fa:${userId}:backup_codes`);
+      if (!backupCodesJson) {
+        return false;
+      }
+
+      const backupCodes: string[] = JSON.parse(backupCodesJson);
+      const codeIndex = backupCodes.indexOf(code);
+
+      if (codeIndex === -1) {
+        return false;
+      }
+
+      // Mark code as used
+      backupCodes[codeIndex] = 'USED';
+      await this.redis.setEx(`2fa:${userId}:backup_codes`, 86400, JSON.stringify(backupCodes));
+
+      logger.info('🔐 Backup code verification successful', { userId });
+      return true;
+    } catch (error) {
+      logger.error('❌ Backup code verification failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate random code
+   */
+  private generateRandomCode(length: number): string {
+    const chars = '0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
+   * Enable 2FA for user
+   */
+  async enable2FA(userId: string, method: 'TOTP' | 'SMS' | 'EMAIL', secret?: string, contact?: string): Promise<boolean> {
+    try {
+      const methodData: TwoFactorMethod = {
+        id: `${userId}_${method.toLowerCase()}`,
+        type: method,
+        secret: method === 'TOTP' ? secret : undefined,
+        phone: method === 'SMS' ? contact : undefined,
+        email: method === 'EMAIL' ? contact : undefined,
+        isEnabled: true,
+        isVerified: true,
+        createdAt: new Date()
+      };
+
+      await this.redis.setEx(`2fa:${userId}:method:${method}`, 0, JSON.stringify(methodData));
+      
+      logger.info('🔐 2FA enabled', { userId, method });
+      return true;
+    } catch (error) {
+      logger.error('❌ Failed to enable 2FA:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Disable 2FA for user
+   */
+  async disable2FA(userId: string, method: 'TOTP' | 'SMS' | 'EMAIL'): Promise<boolean> {
+    try {
+      await this.redis.del(`2fa:${userId}:method:${method}`);
+      await this.redis.del(`2fa:${userId}:backup_codes`);
+      
+      logger.info('🔐 2FA disabled', { userId, method });
+      return true;
+    } catch (error) {
+      logger.error('❌ Failed to disable 2FA:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user has 2FA enabled
+   */
+  async is2FAEnabled(userId: string, method: 'TOTP' | 'SMS' | 'EMAIL'): Promise<boolean> {
+    try {
+      const methodData = await this.redis.get(`2fa:${userId}:method:${method}`);
+      if (!methodData) {
+        return false;
+      }
+
+      const data: TwoFactorMethod = JSON.parse(methodData);
+      return data.isEnabled && data.isVerified;
+    } catch (error) {
+      logger.error('❌ Failed to check 2FA status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get user's 2FA methods
+   */
+  async getUser2FAMethods(userId: string): Promise<TwoFactorMethod[]> {
+    try {
+      const methods: TwoFactorMethod[] = [];
+      const methodTypes: ('TOTP' | 'SMS' | 'EMAIL')[] = ['TOTP', 'SMS', 'EMAIL'];
+
+      for (const method of methodTypes) {
+        const methodData = await this.redis.get(`2fa:${userId}:method:${method}`);
+        if (methodData) {
+          methods.push(JSON.parse(methodData));
+        }
+      }
+
+      return methods;
+    } catch (error) {
+      logger.error('❌ Failed to get user 2FA methods:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get 2FA statistics
+   */
+  async getStats(): Promise<any> {
+    try {
+      const keys = await this.redis.keys('2fa:*:method:*');
+      const enabledCount = keys.length;
+      
+      return {
+        enabledCount,
+        totalUsers: Math.floor(enabledCount / 3), // Assuming max 3 methods per user
+        methods: {
+          TOTP: keys.filter((k: string) => k.includes(':method:TOTP')).length,
+          SMS: keys.filter((k: string) => k.includes(':method:SMS')).length,
+          EMAIL: keys.filter((k: string) => k.includes(':method:EMAIL')).length
+        }
+      };
+    } catch (error) {
+      logger.error('❌ Failed to get 2FA stats:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Close 2FA service connections
+   */
+  async close(): Promise<void> {
+    try {
+      if (this.redis) {
+        await this.redis.quit();
+        logger.info('🔐 2FA service Redis closed');
+      }
+    } catch (error) {
+      logger.error('❌ Error closing 2FA service connections', { error });
+    }
+  }
+}
+
+export const twoFactorService = new TwoFactorService(); 

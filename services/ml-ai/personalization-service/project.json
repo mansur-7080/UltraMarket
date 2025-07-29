@@ -1,0 +1,6 @@
+{
+  "name": "personalization-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/ml-ai/personalization-service/src",
+  "projectType": "application"
+}

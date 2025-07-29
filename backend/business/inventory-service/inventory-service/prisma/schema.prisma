@@ -1,0 +1,212 @@
+// This is your Prisma schema file
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String @id @default(cuid())
+  name        String
+  sku         String @unique
+  description String?
+  category    String
+  brand       String?
+  price       Decimal @db.Decimal(10, 2)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  inventory   Inventory[]
+  reservations StockReservation[]
+  alerts      LowStockAlert[]
+
+  @@map("products")
+}
+
+model Warehouse {
+  id        String @id @default(cuid())
+  name      String
+  code      String @unique
+  address   Json
+  manager   String
+  capacity  Json
+  status    WarehouseStatus @default(ACTIVE)
+  settings  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  inventory   Inventory[]
+  reservations StockReservation[]
+  alerts      LowStockAlert[]
+
+  @@map("warehouses")
+}
+
+model Inventory {
+  id                String @id @default(cuid())
+  productId         String
+  warehouseId       String
+  availableQuantity Int    @default(0)
+  reservedQuantity  Int    @default(0)
+  totalQuantity     Int    @default(0)
+  minimumStock      Int    @default(10)
+  maximumStock      Int    @default(1000)
+  reorderPoint      Int    @default(20)
+  reorderQuantity   Int    @default(100)
+  unitCost          Decimal @db.Decimal(10, 2) @default(0)
+  averageCost       Decimal @db.Decimal(10, 2) @default(0)
+  lastCost          Decimal @db.Decimal(10, 2) @default(0)
+  location          Json?
+  dimensions        Json?
+  attributes        Json?
+  status            InventoryStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  movements   InventoryMovement[]
+
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([availableQuantity])
+  @@index([status])
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  id          String @id @default(cuid())
+  inventoryId String
+  type        MovementType
+  quantity    Int
+  unitCost    Decimal? @db.Decimal(10, 2)
+  totalCost   Decimal? @db.Decimal(10, 2)
+  reference   Json
+  performedBy String
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("inventory_movements")
+}
+
+model StockReservation {
+  id          String @id @default(cuid())
+  productId   String
+  quantity    Int
+  orderId     String
+  customerId  String
+  warehouseId String
+  status      ReservationStatus @default(ACTIVE)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([orderId])
+  @@index([customerId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("stock_reservations")
+}
+
+model LowStockAlert {
+  id             String @id @default(cuid())
+  productId      String
+  sku            String
+  warehouseId    String
+  currentStock   Int
+  minimumStock   Int
+  reorderPoint   Int
+  status         AlertStatus @default(PENDING)
+  priority       AlertPriority @default(MEDIUM)
+  createdAt      DateTime @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  // Relations
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("low_stock_alerts")
+}
+
+// Enums
+enum WarehouseStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+
+  @@map("warehouse_status")
+}
+
+enum InventoryStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+  BACKORDERED
+
+  @@map("inventory_status")
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+  RESERVATION
+  RETURN
+
+  @@map("movement_type")
+}
+
+enum ReservationStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+  EXPIRED
+
+  @@map("reservation_status")
+}
+
+enum AlertStatus {
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+
+  @@map("alert_status")
+}
+
+enum AlertPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("alert_priority")
+} 

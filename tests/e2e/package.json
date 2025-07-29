@@ -1,0 +1,21 @@
+{
+  "name": "@ultramarket/e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-End tests for UltraMarket E-Commerce Platform",
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "cypress run",
+    "test:e2e:chrome": "cypress run --browser chrome",
+    "test:e2e:firefox": "cypress run --browser firefox",
+    "test:e2e:headless": "cypress run --headless"
+  },
+  "devDependencies": {
+    "cypress": "^13.6.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.10.0",
+    "cypress-file-upload": "^5.0.8",
+    "cypress-localstorage-commands": "^2.2.4",
+    "cypress-real-events": "^1.11.0"
+  }
+}

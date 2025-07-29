@@ -1,0 +1,263 @@
+name: Deploy Auth Service
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/core/auth-service/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/core/auth-service/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/auth-service
+
+jobs:
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'node:18-alpine'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Code quality checks
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/core/auth-service/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: backend/core/auth-service
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: backend/core/auth-service
+      run: npm run lint
+    
+    - name: Run TypeScript check
+      working-directory: backend/core/auth-service
+      run: npm run type-check
+    
+    - name: Run tests
+      working-directory: backend/core/auth-service
+      run: npm test -- --coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: backend/core/auth-service/coverage/lcov.info
+        flags: auth-service
+        name: auth-service-coverage
+
+  # Build and test
+  build:
+    needs: [quality]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/core/auth-service/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: backend/core/auth-service
+      run: npm ci
+    
+    - name: Build application
+      working-directory: backend/core/auth-service
+      run: npm run build
+    
+    - name: Run integration tests
+      working-directory: backend/core/auth-service
+      run: npm run test:integration
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-files
+        path: backend/core/auth-service/dist/
+        retention-days: 1
+
+  # Build Docker image
+  docker:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: backend/core/auth-service
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Deploy to staging
+  deploy-staging:
+    needs: [docker]
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Deploy to staging
+      run: |
+        kubectl set image deployment/auth-service auth-service=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        kubectl rollout status deployment/auth-service -n ultramarket
+    
+    - name: Run smoke tests
+      run: |
+        # Wait for deployment to be ready
+        kubectl wait --for=condition=available deployment/auth-service -n ultramarket --timeout=300s
+        
+        # Run basic health checks
+        kubectl port-forward svc/auth-service 3001:80 -n ultramarket &
+        sleep 10
+        curl -f http://localhost:3001/health || exit 1
+
+  # Deploy to production
+  deploy-production:
+    needs: [docker]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Deploy to production
+      run: |
+        kubectl set image deployment/auth-service auth-service=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        kubectl rollout status deployment/auth-service -n ultramarket
+    
+    - name: Run production health checks
+      run: |
+        # Wait for deployment to be ready
+        kubectl wait --for=condition=available deployment/auth-service -n ultramarket --timeout=300s
+        
+        # Run comprehensive health checks
+        kubectl port-forward svc/auth-service 3001:80 -n ultramarket &
+        sleep 10
+        
+        # Health check
+        curl -f http://localhost:3001/health || exit 1
+        
+        # Detailed health check
+        curl -f http://localhost:3001/health/detailed || exit 1
+        
+        # Readiness check
+        curl -f http://localhost:3001/health/ready || exit 1
+    
+    - name: Notify deployment success
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: 'Auth Service deployed to production successfully!'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Rollback on failure
+  rollback:
+    needs: [deploy-production]
+    if: failure()
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Rollback deployment
+      run: |
+        kubectl rollout undo deployment/auth-service -n ultramarket
+        kubectl rollout status deployment/auth-service -n ultramarket
+    
+    - name: Notify rollback
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: 'Auth Service deployment failed and was rolled back!'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 

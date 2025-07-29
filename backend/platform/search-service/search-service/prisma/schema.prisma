@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SearchLog {
+  id              String   @id @default(cuid())
+  query           String
+  userId          String?
+  sessionId       String?
+  filters         Json?
+  sortBy          String?
+  sortOrder       String?
+  page            Int      @default(1)
+  limit           Int      @default(20)
+  totalResults    Int      @default(0)
+  responseTime    Int?     // milliseconds
+  ipAddress       String?
+  userAgent       String?
+  referrer        String?
+  clickedResults  String[] // Array of clicked product IDs
+  createdAt       DateTime @default(now())
+
+  @@index([query])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("search_logs")
+}
+
+model SearchSuggestion {
+  id              String   @id @default(cuid())
+  query           String
+  suggestion      String
+  type            SuggestionType
+  weight          Int      @default(1)
+  isActive        Boolean  @default(true)
+  clickCount      Int      @default(0)
+  conversionCount Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([query])
+  @@index([suggestion])
+  @@index([type])
+  @@index([weight])
+  @@map("search_suggestions")
+}
+
+model SearchAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  query           String
+  totalSearches   Int      @default(0)
+  uniqueSearches  Int      @default(0)
+  totalClicks     Int      @default(0)
+  totalConversions Int     @default(0)
+  averageResponseTime Int  @default(0)
+  zeroResults     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([date, query])
+  @@index([date])
+  @@index([query])
+  @@map("search_analytics")
+}
+
+model SearchIndex {
+  id              String   @id @default(cuid())
+  entityType      String   // product, category, brand, etc.
+  entityId        String
+  data            Json
+  indexedAt       DateTime @default(now())
+  lastUpdated     DateTime @updatedAt
+
+  @@unique([entityType, entityId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([indexedAt])
+  @@map("search_index")
+}
+
+model SearchSynonym {
+  id              String   @id @default(cuid())
+  term            String
+  synonyms        String[]
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([term])
+  @@index([isActive])
+  @@map("search_synonyms")
+}
+
+model SearchFilter {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  type            FilterType
+  field           String
+  label           String
+  options         Json?
+  defaultValue    String?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([name])
+  @@index([type])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("search_filters")
+}
+
+model SearchFacet {
+  id              String   @id @default(cuid())
+  field           String
+  value           String
+  count           Int      @default(0)
+  isActive        Boolean  @default(true)
+  lastUpdated     DateTime @updatedAt
+
+  @@unique([field, value])
+  @@index([field])
+  @@index([value])
+  @@index([count])
+  @@map("search_facets")
+}
+
+model SearchTrend {
+  id              String   @id @default(cuid())
+  query           String
+  period          String   // daily, weekly, monthly
+  date            DateTime @db.Date
+  searchCount     Int      @default(0)
+  clickCount      Int      @default(0)
+  conversionCount Int      @default(0)
+  trend           TrendDirection @default(STABLE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([query, period, date])
+  @@index([query])
+  @@index([period])
+  @@index([date])
+  @@map("search_trends")
+}
+
+model SearchPopularity {
+  id              String   @id @default(cuid())
+  query           String
+  popularity      Int      @default(0)
+  category        String?
+  isTrending      Boolean  @default(false)
+  lastUpdated     DateTime @updatedAt
+
+  @@unique([query])
+  @@index([query])
+  @@index([popularity])
+  @@index([isTrending])
+  @@map("search_popularity")
+}
+
+// Enums
+enum SuggestionType {
+  AUTOCOMPLETE
+  SPELLING_CORRECTION
+  POPULAR_SEARCH
+  RELATED_SEARCH
+  TRENDING_SEARCH
+}
+
+enum FilterType {
+  RANGE
+  MULTISELECT
+  SINGLESELECT
+  BOOLEAN
+  DATE_RANGE
+}
+
+enum TrendDirection {
+  RISING
+  FALLING
+  STABLE
+}

@@ -1,0 +1,6 @@
+{
+  "name": "dynamic-pricing-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/business/dynamic-pricing-service/src",
+  "projectType": "application"
+}

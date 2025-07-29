@@ -1,0 +1,6 @@
+{
+  "name": "shipping-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/business/shipping-service/src",
+  "projectType": "application"
+}

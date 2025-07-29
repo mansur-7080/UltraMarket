@@ -1,0 +1,6 @@
+{
+  "name": "business-intelligence",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "microservices/analytics/business-intelligence/src",
+  "projectType": "application"
+}
